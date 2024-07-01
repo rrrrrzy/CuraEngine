@@ -24,7 +24,9 @@ namespace cura
 
 FILE* binaryMeshBlob = nullptr;
 
-/* Custom fgets function to support Mac line-ends in Ascii STL files. OpenSCAD produces this when used on Mac */
+/*  Custom fgets function to support Mac line-ends in Ascii STL files. OpenSCAD produces this when used on Mac 
+    从文件中读取一行数据（直到\n或\r或达到指定长度len），并将其作为以 \0 结束的字符串存储在 ptr 所指向的内存中。
+*/
 void* fgets_(char* ptr, size_t len, FILE* f)
 {
     while (len && fread(ptr, 1, 1, f) > 0)
@@ -143,9 +145,10 @@ bool loadMeshSTL_ascii(Mesh* mesh, const char* filename, const Matrix4x3D& matri
     Point3F vertex;
     int n = 0;
     Point3LL v0(0, 0, 0), v1(0, 0, 0), v2(0, 0, 0);
-    while (fgets_(buffer, sizeof(buffer), f))
+    while (fgets_(buffer, sizeof(buffer), f)) // 每次读取1024个字节且当返回值不为nullptr时
     {
-        if (sscanf(buffer, " vertex %f %f %f", &vertex.x_, &vertex.y_, &vertex.z_) == 3)
+        if (sscanf(buffer, " vertex %f %f %f", &vertex.x_, &vertex.y_, &vertex.z_) == 3) 
+        // 总之，这一段读入了所有的坐标信息
         {
             n++;
             switch (n)
@@ -173,10 +176,11 @@ bool loadMeshSTL_binary(Mesh* mesh, const char* filename, const Matrix4x3D& matr
 {
     FILE* f = fopen(filename, "rb");
 
-    fseek(f, 0L, SEEK_END);
-    long long file_size = ftell(f); // The file size is the position of the cursor after seeking to the end.
+    fseek(f, 0L, SEEK_END); // 将文件指针f移动到文件末尾
+    long long file_size = ftell(f); // The file size is the position of the cursor(光标) after seeking to the end.
     rewind(f); // Seek back to start.
-    size_t face_count = (file_size - 80 - sizeof(uint32_t)) / 50; // Subtract the size of the header. Every face uses exactly 50 bytes.
+    size_t face_count = (file_size - 80 - sizeof(uint32_t)) / 50; 
+    // Subtract the size of the header. Every face uses exactly 50 bytes.
 
     char buffer[80];
     // Skip the header
@@ -236,12 +240,12 @@ bool loadMeshSTL(Mesh* mesh, const char* filename, const Matrix4x3D& matrix)
     // Skip any whitespace at the beginning of the file.
     unsigned long long num_whitespace = 0; // Number of whitespace characters.
     unsigned char whitespace;
-    if (fread(&whitespace, 1, 1, f) != 1)
+    if (fread(&whitespace, 1, 1, f) != 1) // 预先读取一个空白符，如果有则返回1，没有说明文件为空
     {
         fclose(f);
         return false;
     }
-    while (isspace(whitespace))
+    while (isspace(whitespace)) // 总之，这一段读取文件头部的所有空白符并计数，直到遇到第一个非空白符
     {
         num_whitespace++;
         if (fread(&whitespace, 1, 1, f) != 1)
@@ -251,28 +255,30 @@ bool loadMeshSTL(Mesh* mesh, const char* filename, const Matrix4x3D& matrix)
         }
     }
     fseek(f, num_whitespace, SEEK_SET); // Seek to the place after all whitespace (we may have just read too far).
-
+                                        // 这样之后，就跳转到了第一个非空白符的位置
     char buffer[6];
-    if (fread(buffer, 5, 1, f) != 1)
+    if (fread(buffer, 5, 1, f) != 1)    // 读取一个5字节大小的数据，如果读取失败，退出
     {
         fclose(f);
         return false;
     }
     fclose(f);
 
-    buffer[5] = '\0';
-    if (stringcasecompare(buffer, "solid") == 0)
+    buffer[5] = '\0';                   // 把字符串数组中最后一个元素定义为终止元素“\0”，避免下面进行strcmp时发生错误
+    if (stringcasecompare(buffer, "solid") == 0) // 该情况表明读取的5字节数据是“solid”
     {
-        bool load_success = loadMeshSTL_ascii(mesh, filename, matrix);
+        bool load_success = loadMeshSTL_ascii(mesh, filename, matrix); // 进一步读取以ascii码存储的stl文件
         if (! load_success)
             return false;
 
         // This logic is used to handle the case where the file starts with
         // "solid" but is a binary file.
+        // 分析一下这里是怎么判断出来的：二进制模式下会导致loadMeshSTL_ascii函数读取不了任何信息，
+        // 但这个函数无论如何都会返回true，因此mesh->faces_.size()如果小于1就表明没有读取到任何坐标信息，故为二进制模式
         if (mesh->faces_.size() < 1)
         {
             mesh->clear();
-            return loadMeshSTL_binary(mesh, filename, matrix);
+            return loadMeshSTL_binary(mesh, filename, matrix); 
         }
         return true;
     }
@@ -293,8 +299,6 @@ bool loadMeshIntoMeshGroup(MeshGroup* meshgroup, const char* filename, const Mat
             spdlog::info("loading '{}' took {:03.3f} seconds", filename, load_timer.restart());
             return true;
         }
-        spdlog::warn("loading '{}' failed", filename);
-        return false;
     }
     spdlog::warn("Unable to recognize the extension of the file. Currently only .stl and .STL are supported.");
     return false;
