@@ -9,20 +9,109 @@
 
 #include "utils/Point3D.h"
 
+/*
+    Mesh 类的定义:
+        Mesh 类是一个基本的 3D 模型表示,包含了所有的 MeshFace 对象。
+        Mesh 类包含了两个主要的数据成员:
+            vertices_: 存储所有顶点的列表
+            faces_: 存储所有面的列表
+
+    相关变量和函数:
+        vertex_hash_map_:           一个哈希映射,用于快速查找具有相同位置的顶点。
+        aabb_:                      3D 模型的轴对齐包围盒。
+        settings_:                  与 Mesh 相关的设置。
+        mesh_name_:                 Mesh 的名称。
+        addFace():                  向 Mesh 添加一个新的面,但不设置其连接的面。
+        clear():                    清除 Mesh 中的所有数据。
+        finish():                   完成 Mesh 的构建,设置面之间的连接关系。
+        min(), max() 和 getAABB():  获取 Mesh 的最小和最大坐标以及轴对齐包围盒。
+        translate():                平移整个 Mesh。
+        transform():                对 Mesh 应用仿射变换。
+        isPrinted():                检查 Mesh 是否为可打印的网格。
+        canInterlock():             检查 Mesh 是否可与其他网格互锁。
+        findIndexOfVertex():        查找或创建一个给定点附近的顶点。
+        getFaceIdxWithPoints():     根据给定的顶点索引查找共享边的相邻面的索引。
+
+    功能和用处:
+        Mesh 类提供了一种基本的 3D 模型表示方式,用于在计算机图形学和计算几何学领域进行各种操作,如网格压缩、简化、匹配等。
+        该类支持对 Mesh 进行平移、旋转、缩放等变换,并提供了一些辅助函数,如获取包围盒、查找顶点等。
+        该类还区分了可打印的网格和其他类型的网格(如填充网格、切片网格等),并提供了判断网格是否可互锁的功能。
+        总的来说,Mesh 类是一个基础的 3D 模型表示,为上层的计算机图形学算法和应用提供了基础的数据结构和操作。
+
+*/
 namespace cura
 {
 
 const int vertex_meld_distance = MM2INT(0.03);
 /*!
+ * 下面给出"vertex_meld_distance"的定义: 
+ * vertex_meld_distance 这个术语通常出现在计算机图形学和计算几何学领域,它是一种度量两个三角网格或网格顶点之间相似性的指标。
+
+    具体来说:
+
+    顶点融合距离 (Vertex Meld Distance):
+        这是一种用于评估两个三角网格或网格之间相似性的度量方法。
+        它通过计算网格中对应顶点之间的距离来衡量两个网格的相似程度。
+        如果两个网格中对应顶点的位置非常接近,则它们的顶点融合距离会很小,表示两个网格高度相似。
+
+    应用场景:
+        在网格压缩、网格简化、网格匹配等计算机图形学领域广泛应用。
+        可用于评估两个网格之间的差异,以决定是否需要进一步的网格优化或处理。
+        也可用于在网格动画中检测网格变形,以确保动画的连续性和逼真性。
+
+    计算方法:
+        通常通过计算两个网格中对应顶点之间的欧几里德距离来得到顶点融合距离。
+        也可以考虑其他因素,如法向量、纹理坐标等来增强度量的有效性。
+
+    总之,vertex_meld_distance 是一种用于评估网格相似性的重要指标,在计算机图形学中有广泛的应用。它能帮助开发者更好地理解和处理三维网格数据。
+
  * returns a hash for the location, but first divides by the vertex_meld_distance,
  * so that any point within a box of vertex_meld_distance by vertex_meld_distance would get mapped to the same hash.
+   这个哈希函数会返回一个位置的哈希值,但在此之前先会将该位置的坐标值除以一个叫做 vertex_meld_distance 的值。
+   这样做的目的是,使得在一个 vertex_meld_distance 乘 vertex_meld_distance 大小的立体内的任意点,都会被映射到同一个哈希值。
  */
 static inline uint32_t pointHash(const Point3LL& p)
+/*
+    下面说明类"Point3LL"的定义和作用：
+    Point3LL 是一个3D点的数据结构。它包含三个成员变量 x、y 和 z，表示该点在3D空间中的坐标。
+    这个类提供了一系列运算符重载,使得我们可以方便地对3D点进行各种数学运算,如加、减、乘、除等。
+    它还提供了一些有用的方法,比如计算点的长度、点积等。
+
+    这个类在3D建模、图形学、机器人学等领域都有广泛的应用。
+    比如在3D打印中,需要处理各种3D模型,这些模型的顶点信息就可以用Point3LL来表示。
+    在计算机图形学中,Point3LL可以用来表示3D场景中的顶点。
+*/
 {
     return ((p.x_ + vertex_meld_distance / 2) / vertex_meld_distance) ^ (((p.y_ + vertex_meld_distance / 2) / vertex_meld_distance) << 10)
          ^ (((p.z_ + vertex_meld_distance / 2) / vertex_meld_distance) << 20);
 }
 
+/*
+    语法说明：初始化列表
+    初始化列表是 C++ 中一个非常重要的语法特性,它用于在对象构造时初始化类成员变量。
+
+    定义:
+    初始化列表是位于构造函数头部的一个逗号分隔的列表,用于初始化对象的成员变量。它的语法形式如下:
+
+    ClassName(parameters) : member1(expression1), member2(expression2), ... { 
+        // 函数体
+    }
+
+    用法:
+    初始化列表主要用于以下几种情况:
+
+    初始化 const 成员变量:因为 const 成员变量必须在初始化时就赋值,而不能在函数体内赋值。
+    初始化引用类型成员变量:引用必须在初始化时绑定到一个对象,不能在函数体内绑定。
+    调用基类构造函数:当派生类需要调用基类的构造函数时,需要在初始化列表中进行调用。
+    初始化 C 风格数组成员:数组成员必须在初始化列表中进行初始化。
+
+    意义:
+
+    提高初始化效率:初始化列表在对象构造时就完成了成员变量的初始化,避免了在函数体内再次赋值,提高了初始化效率。
+    语义更清晰:初始化列表明确地表达了成员变量的初始化顺序和初始化方式,使代码更加易读和易维护。
+    满足语言要求:某些情况下,如 const 成员变量和引用类型成员变量的初始化,只能通过初始化列表来完成。
+
+*/
 Mesh::Mesh(Settings& parent)
     : settings_(parent)
     , has_disconnected_faces(false)

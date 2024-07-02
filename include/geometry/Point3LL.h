@@ -13,6 +13,47 @@
 #include "utils/Coord_t.h"
 #include "utils/types/generic.h"
 
+/*
+Point3LL 是一个表示三维坐标的类,定义如下:
+
+    成员变量:
+        x_: 表示 x 坐标
+        y_: 表示 y 坐标
+        z_: 表示 z 坐标
+
+    构造函数:
+        默认构造函数 Point3LL()
+        接收 3 个 coord_t 类型的参数的构造函数 Point3LL(const coord_t x, const coord_t y, const coord_t z)
+        拷贝构造函数和移动构造函数
+
+    重载运算符:
+        加法运算符 operator+
+        取负运算符 operator-
+        减法运算符 operator-
+        元素级乘法运算符 operator*
+        除法运算符 operator/
+        复合赋值运算符 operator+=, operator-=, operator*=, operator/=
+        关系运算符 operator<=>
+        流输出运算符 operator<<
+
+    其他成员函数:
+        max(): 返回三个坐标值中的最大值
+        testLength(coord_t len): 检查三个坐标值是否都在 [-len, len] 范围内,并且向量长度的平方不超过 len^2
+        vSize2(): 返回向量长度的平方
+        vSize(): 返回向量长度
+        vSizeMM(): 返回向量长度(单位为 mm)
+        dot(const Point3LL& p): 返回两个向量的点积
+
+    全局函数:
+        operator*(const T i, const Point3LL& rhs): 实现 Point3LL 与标量的乘法运算
+
+    特化 std::hash
+        提供了 Point3LL 类型的哈希函数实现,用于在哈希表中存储 Point3LL 对象。
+
+总的来说,Point3LL 类提供了一个方便地表示和操作三维坐标的数据结构,支持常见的数学运算,并且可以用于哈希表等数据结构中。这在三维几何计算中会非常有用。
+*/
+
+
 
 namespace cura
 {
